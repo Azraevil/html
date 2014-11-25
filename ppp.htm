@@ -1,0 +1,290 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>2048 Game - Play 2048 Game Online</title>
+
+    <link href="main.css" rel="stylesheet" type="text/css">
+    <link rel="shortcut icon" href="favicon.ico">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+    <meta property="og:image" content="apple-touch-icon.png">
+
+    <meta name="apple-mobile-web-app-capable" content="yes">
+
+    <meta name="HandheldFriendly" content="True">
+    <meta name="MobileOptimized" content="320">
+    <meta name="viewport" content="width=device-width, target-densitydpi=160dpi, initial-scale=1.0, maximum-scale=1, user-scalable=no, minimal-ui">
+
+    <script type="text/javascript" src="http://code.jquery.com/jquery-1.11.1.js"></script>
+    <!--<script type="text/javascript" src="http://code.jquery.com/jquery-2.1.1.js"></script>-->
+    <script type="text/javascript">
+        //Array.prototype.clone = Array.prototype.slice;
+
+        window.my2048 = function (rows, cols, puzzle) {
+            var privateMember = {
+                id: '',
+                rows: rows > 0 ? rows : 4,
+                cols: cols > 0 ? cols : 4,
+                score: 0,
+                current: puzzle ? puzzle : [],
+                history: [],
+                loop: function (operation) {
+                    for (var i = 0; i < pm.rows; i++) {
+                        for (var j = 0; j < pm.cols; j++) {
+                            var r = operation.apply(this, [i, j]);
+                            if (r != undefined && typeof (r) == 'boolean' && r == false) return r;
+                        }
+                    }
+                },
+                track: function () {
+                    pm.history.push({ score: pm.score, data: pm.current });
+                },
+                roll: function (min, max) {
+                    if (max == undefined) {
+                        max = min;
+                        min = 0;
+                    }
+                    return Math.floor(Math.random() * (max - min + 1) + min);
+                },
+                transpose: function (matrix) {
+                    var result = [];
+                    if (matrix) {
+                        for (var i = 0; i < matrix.length; i++) {
+                            for (var j = 0; j < matrix[i].length; j++) {
+                                if (!result[j])
+                                    result[j] = new Array(matrix.length);
+                                result[j][i] = matrix[i][j];
+                            }
+                        }
+                    }
+                    return result;
+                },
+                moveStep: function (targetArray, reverse) {
+                    var buffer = new Array();
+                    var array = targetArray.slice();
+                    for (i in array) {
+                        var value = array[reverse ? array.length - 1 - i : i];
+                        if (value > 0) {
+                            buffer.push(value);
+                        }
+                    }
+
+                    var temp = buffer.pop();
+                    for (i in array) {
+                        var value = 0;
+                        if (temp > 0 && buffer.length > 0 && temp == buffer[buffer.length - 1]) {
+                            temp = temp + buffer.pop();
+                            if (pm && pm.score)
+                                pm.score += temp;
+                        }
+                        value = temp ? temp : 0;
+                        temp = buffer.pop();
+                        array[i] = value;
+                    }
+
+                    //to reserve back
+                    return reverse ? array : array.reverse();
+                }
+            }
+
+            var pm = privateMember;
+
+            $.extend(this, {
+                init: function () {
+                    //create id
+                    if (!pm.id)
+                        pm.id = (Math.random().toString()).replace(/0?[.]/, '');
+
+                    //init Dom
+                    var table = $('#my2048_' + pm.id);
+                    if (table.length > 0)
+                        table.remove();
+                    table = $('<table/>', { id: 'my2048_' + pm.id }).data('myid', pm.id);
+                    for (var i = 0; i < pm.rows; i++) {
+                        var tr = $('<tr/>');
+                        for (var j = 0; j < pm.cols; j++) {
+                            var td = $('<td/>', { 'class': 'td2048', id: 'td' + i + j });
+                            var div = $('<div/>', { 'class': 'grid-cell', id: 'div' + i + j });
+                            tr.append(td.append(div));
+                        }
+                        table.append(tr);
+                    }
+                    $(document.body).append(table);
+
+                    //init Data
+                    if (pm.current.length == 0) {
+                        var startNum = pm.roll(2, 3);
+                        this.rollGame(startNum, true);
+                    }
+
+                    return this;
+                },
+                rollGame: function (startNum, startover) {
+                    if (startover == undefined) startover = false;
+                    if (!startNum) startNum = 1;
+
+                    if (startover) {
+                        pm.current = new Array();
+                        pm.history = new Array();
+
+                        pm.loop.apply(this, [function (i, j) {
+                            if (!pm.current[i])
+                                pm.current[i] = new Array(pm.cols);
+                            if (pm.current[i][j] == undefined)
+                                pm.current[i][j] = 0;
+                        }]);
+                    }
+
+                    var temp = [];
+                    $.each(pm.current.toString().split(','), function (i, s) {
+                        if (s == '0')
+                            temp.push({
+                                x: Math.floor(i / pm.cols),
+                                y: i % pm.cols
+                            });
+                    });
+                    for (var i = 0; i < startNum && i < temp.length; i++) {
+                        var pos = temp[pm.roll(temp.length - 1)];
+                        pm.current[pos.x][pos.y] = pm.roll(1, 2) * 2;
+                    }
+
+                    return this;
+                },
+                judgeGame: function () {
+                    var gameover = true;
+                    $.each(pm.current.toString().split(','), function (i, s) {
+                        if (s == '0')
+                            gameover = false;
+                    });
+
+                    if (gameover) {
+                        pm.loop.apply(this, [function (i, j) {
+                            var v = pm.current[i][j];
+                            if ((i - 1 >= 0 && pm.current[i - 1][j] == v) ||
+                                (i + 1 < pm.rows && pm.current[i + 1][j] == v) ||
+                                (j - 1 >= 0 && pm.current[i][j - 1] == v) ||
+                                (j + 1 < pm.cols && pm.current[i][j + 1] == v)) {
+                                gameover = false;
+                                return false;
+                            }
+                        }]);
+                    }
+
+                    return gameover;
+                },
+                restart: function () {
+                    var startNum = pm.roll(2, 3);
+                    this.rollGame(startNum, true);
+                    this.show();
+                },
+                move: function (x, y) {
+                    var matrix;
+                    var reverse;
+                    var result = [];
+                    var moveStep = pm.moveStep;
+                    if (x != 0) {
+                        matrix = pm.current;
+                        reverse = x < 0;
+                    }
+                    else if (y != 0) {
+                        matrix = pm.transpose(pm.current);
+                        reverse = y < 0;
+                    }
+
+                    for (var i in matrix) {
+                        result[i] = moveStep.apply(this, [matrix[i], reverse]);
+                    };
+
+                    if (result.toString() == matrix.toString()) return this;
+
+                    pm.track.apply(this);
+
+                    if (x != 0) {
+                        pm.current = result;
+                    }
+                    else if (y != 0) {
+                        pm.current = pm.transpose(result);
+                    }
+
+                    this.rollGame();
+                    return this.show.apply(this);
+                },
+                show: function () {
+                    pm.loop.apply(this, [function (i, j) {
+                        var value = pm.current[i][j];
+                        $('#div' + i + j, $('#my2048_' + pm.id).get(0)).html(value ? value : '');
+                    }]);
+                    if (this.judgeGame()) {
+                        if (confirm('Game Over. Restart?')) {
+                            this.restart();
+                        }
+                    }
+                    return this;
+                },
+                undo: function () {
+                    if (pm.history.length == 0) return this;
+                    var last = pm.history.pop();
+                    pm.score = last.score;
+                    pm.current = last.data;
+                    return this.show.apply(this);
+                },
+                rank: function () {
+                    alert(pm.score);
+                }
+            });
+
+            //show self
+            return this.init().show.apply(this);
+        }
+
+        $(function () {
+            var my = new my2048();
+            //var my2 = new my2048(3, 3, [[4, 2, 8], [16, 32, 4], [8, 4, 2]]);
+
+            //bind custom eventHandler
+            $(document).keyup(function () {
+                switch (event.keyCode) {
+                    case 8:
+                        //alert('Backspace');
+                        my.undo();
+                        //my2.undo();
+                        break;
+                    case 27:
+                        //alert('Esc');
+                        my.restart();
+                        //my2.restart();
+                        break;
+                    case 32:
+                        //alert('Space');
+                        my.rank();
+                        //my2.rank();
+                        break;
+                    case 37:
+                        //alert('←');
+                        my.move(-1, 0);
+                        //my2.move(-1, 0);
+                        break;
+                    case 38:
+                        //alert('↑');
+                        my.move(0, -1);
+                        //my2.move(0, -1);
+                        break;
+                    case 39:
+                        //alert('→');
+                        my.move(1, 0);
+                        //my2.move(1, 0);
+                        break;
+                    case 40:
+                        //alert('↓');
+                        my.move(0, 1);
+                        //my2.move(0, 1);
+                        break;
+                }
+            });
+        });
+    </script>
+</head>
+<body>
+</body>
+</html>
