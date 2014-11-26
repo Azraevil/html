@@ -55,7 +55,7 @@
                             return col;
                         }
                     } else {
-                        var result = val[i][j];
+                        var result = val[i] ? val[i][j] : 0;
                         return result ? result : 0;
                     }
                 },
@@ -65,13 +65,40 @@
                     return Math.min(s.i, s.j);
                 },
 
-                multiply: function (multiplier, skipVerify) {
+                transpose: function () {
+                    var m = this;
+                    var result = [];
+                    for (var j = 0; j < m.size().j ; j++) {
+                        result[j] = m.get('j', j);
+                    }
+                    return new Matrix(result);
+                },
+
+                plus: function (operand) {
                     var m1 = this;
-                    var m2 = multiplier;
+                    var m2 = operand;
                     var size1 = m1.size();
                     var size2 = m2.size();
                     var result = [];
-                    if (skipVerify || size1.j != size2.i) throw new Error('multiplier`s row number does not match');
+                    if (size1.i != size2.i || size1.j != size2.j) throw new Error('operand`s size does not match');
+
+                    for (var i = 0; i < size1.i ; i++) {
+                        result[i] = [];
+                        for (var j = 0; j < size1.j ; j++) {
+                            result[i][j] = m1.get(i, j) + m2.get(i, j);
+                        }
+                    }
+
+                    return new Matrix(result);
+                },
+
+                multiply: function (operand) {
+                    var m1 = this;
+                    var m2 = operand;
+                    var size1 = m1.size();
+                    var size2 = m2.size();
+                    var result = [];
+                    if (size1.j != size2.i) throw new Error('operand`s size does not match');
 
                     for (var i = 0; i < size1.i ; i++) {
                         result[i] = [];
@@ -87,8 +114,8 @@
                     return new Matrix(result);
                 },
 
-                multiplyTo: function (multiplier, verify) {
-                    return multiplier.multiply(this, verify);
+                multiplyTo: function (operand, skipVerify) {
+                    return operand.multiply(this, skipVerify);
                 }
             };
         }

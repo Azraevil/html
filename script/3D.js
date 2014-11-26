@@ -36,6 +36,8 @@
         },
         true,
         function () {
+            window.Vector = window.Coord;
+
             Matrix.prototype.extend({
                 toCoord: function () {
                     var vector = this;
@@ -59,13 +61,51 @@
                 },
 
                 project: function (f, x0, y0) {
-                    var f = f || 100, x0 = x0 || 0, y0 = y0 || 0;
-                    return new Coord(f * this.x / this.z + x0, f * this.y / this.z + y0);
+                    var p = new Matrix('1,0,0,0|0,1,0,0|0,0,0,0|0,0,' + -1 / f + ',1');
+                    return this.toMatrix(true).multiplyTo(p).toCoord();
                 }
             };
 
+            Coord.extend({
+                getVector: function (start, end) {
+                    return new Vector(end.x - start.x, end.y - start.y, end.z - start.z);
+                }
+            });
+
+            Vector.prototype.extend({
+                norm: function () {
+                    return Math.sqrt(Math.pow(this.x, 2) + Math.pow(this.y, 2) + Math.pow(this.z, 2));
+                },
+
+                dot: function (vector) {
+                    var v1 = this;
+                    var v2 = vector;
+                    return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
+                },
+
+                cross: function (vector) {
+                    var v1 = this;
+                    var v2 = vector;
+                    return new Vector(v1.y * v2.z - v1.z * v2.y, v1.z * v2.x - v1.x * v2.z, v1.x * v2.y - v1.y * v2.x);
+                },
+
+                getAngle: function (vector) {
+                    var v1 = this, v2 = vector;
+                    var d = v1.dot(v2);
+                    return Math.acos(d / (v1.norm() * v2.norm()));
+                }
+            });
+
             Polygon.prototype = [];
             Polygon.prototype.extend({
+                visible: function (view) {
+                    if (this.length < 3) throw new Error('A plane is determined by at least three points');
+                    var vx = Coord.getVector(this[0], this[1]).cross(Coord.getVector(this[1], this[2]));
+                    var vv = Coord.getVector(this[1], view);
+                    var radian = vx.dot(vv) / vx.norm() / vv.norm();
+                    return radian >= 0 && radian < 1;
+                },
+
                 draw: function () {
                     throw new Error('unimplemented exception');
                 }
@@ -104,6 +144,7 @@
 
                 scaling: function () {
                     var x = arguments[1], y = arguments[2], z = arguments[3];
+                    if (y == undefined && z == undefined) y = z = x;
                     var S = new Matrix(x + ',0,0,0|0,' + y + ',0,0|0,0,' + z + ',0|0,0,0,1');
                     return S;
                 }
