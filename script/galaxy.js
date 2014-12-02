@@ -7,56 +7,71 @@
                 return element.getContext('2d');
         },
 
-        Star: function () {
-            this.coord = new Coord();
-            this.radius = this.mass = 0;
+        Star: function (x, y, z, r, m) {
+            this.coord = new Coord(x, y, z);
+            this.radius = r || 1;
+            this.mass = m || 1;
         },
 
         Galaxy: [].extend({
             add: function (star) {
                 this.push(star);
-
+            },
+            sortStar: function () {
+                return this.sort(function (s1, s2) { return s1.coord.z - s2.coord.z; });
             },
             pause: true,
         }),
 
-        Offset: { x: 0, y: 0 },
+        Offset: { x: 0, y: 0, z: 0 },
 
         Rotate: { a: 0, b: 0 },
 
         Scaling: 1,
 
-        ViewDistance: 500,
+        ViewDistance: 800,
 
         TransformMatrix: null,
 
-        World: [],
-
         MouseButton: -1,
 
-        MousePoint: { x: 0, y: 0 },
+        MousePoint: { x: 0, y: 0 }
     });
+
+    Star.prototype = {
+        draw: function () {
+            var p = this.coord//.project(ViewDistance);
+
+            var color = this.mass.toString(16);
+            while (color.length < 6) color = '0' + color;
+            canvas.lineWidth = 1.0;
+            canvas.fillStyle = '#' + color;
+
+            canvas.beginPath();
+            canvas.arc(p.x, p.y, this.radius, 0, Math.PI * 2);
+            canvas.fill();
+        }
+    };
 
 
     var canvas = getCanvas();
     var canvasDom = Az('canvas').get();
     canvas.translate(canvasDom.width / 2, canvasDom.height / 2);
 
-    canvasDom.addEventListener('mousedown', function () {
-        MousePoint.x = event.x, MousePoint.y = event.y, MouseButton = event.button;
-        canvasDom.addEventListener('mousemove', move);
-    });
-    canvasDom.addEventListener('mouseup', function () {
-        canvasDom.removeEventListener('mousemove', move);
-        MouseButton = -1;
-    });
-    canvasDom.onmousewheel = function () { move(); return false; };
+    //canvasDom.addEventListener('mousedown', function () {
+    //    MousePoint.x = event.x, MousePoint.y = event.y, MouseButton = event.button;
+    //    canvasDom.addEventListener('mousemove', move);
+    //});
+    //canvasDom.addEventListener('mouseup', function () {
+    //    canvasDom.removeEventListener('mousemove', move);
+    //    MouseButton = -1;
+    //});
+    //canvasDom.onmousewheel = function () { move(); return false; };
     canvasDom.oncontextmenu = function () { return false; };
 
     var move = function () {
         if (event.wheelDelta) {
-            Scaling += event.wheelDelta / 120 * 0.1;
-            Scaling = Scaling > 0 ? Scaling : 0;
+            Offset.z += event.wheelDelta / 120 * 10;
         } else {
             var offset = { x: event.x - MousePoint.x, y: event.y - MousePoint.y };
             if (MouseButton == 0)
@@ -65,7 +80,7 @@
                 Rotate.b += offset.x, Rotate.a += offset.y;
         }
 
-        drawWorld();
+        drawWorld(true);
         monitor();
 
         if (!event.wheelDelta)
@@ -81,87 +96,41 @@
         console.html(console.html() + 'wheelDelta: ' + event.wheelDelta + '<br />');
     }
 
-    Polygon.prototype.draw = function () {
-        shape2d = this;
-
-        canvas.lineWidth = 1.0;
-        canvas.strokeStyle = "#000";
-
-        canvas.beginPath();
-        end = shape2d[shape2d.length - 1].project(ViewDistance);
-        canvas.moveTo(end.x, end.y);
-
-        Az.each(shape2d, function (coord) {
-            var p = coord.project(ViewDistance);//投影
-            canvas.lineTo(p.x, p.y);
-        });
-
-        canvas.stroke();
-    }
-
-    var drawWorld = function () {
+    var drawWorld = function (transform) {
         TransformMatrix = transform3d('scaling', Scaling)
+                          .transform3d('translate', Offset.x, Offset.y, Offset.z)
                           .transform3d('rotateByAngle', 'x', Rotate.a)
                           .transform3d('rotateByAngle', 'y', Rotate.b)
-                          .transform3d('translate', Offset.x, Offset.y, 0)
         var view = new Coord(0, 0, ViewDistance);
 
         clearCanvas();
-        Az.each(World, function (polygon) {
-            var shape = new Polygon();
-            Az.each(polygon, function (coord) {
-                shape.push(coord.transform(TransformMatrix));
-            });
-            shape.visible(view) && shape.draw();
+        Az.each(window.Galaxy, function (s) {
+            var star = s.clone();
+            star.coord = s.coord.transform(TransformMatrix);
+            star.draw();
         });
     }
 
     function clearCanvas() {
-        canvas.clearRect(-512, -384, 1024, 768);
+        canvas.clearRect(-canvasDom.width / 2, -canvasDom.height / 2, canvasDom.width, canvasDom.height);
     }
 
-    var trans0 = transform3d('translate', -50, -50, -50);
-    var p1 = new Polygon([
-        new Coord(0, 0, 0).transform(trans0),
-        new Coord(0, 100, 0).transform(trans0),
-        new Coord(100, 100, 0).transform(trans0),
-        new Coord(100, 0, 0).transform(trans0)
-    ]);
-    var p2 = new Polygon([
-        new Coord(0, 0, 0).transform(trans0),
-        new Coord(0, 0, 100).transform(trans0),
-        new Coord(0, 100, 100).transform(trans0),
-        new Coord(0, 100, 0).transform(trans0)
-    ]);
-    var p3 = new Polygon([
-        new Coord(0, 0, 0).transform(trans0),
-        new Coord(100, 0, 0).transform(trans0),
-        new Coord(100, 0, 100).transform(trans0),
-        new Coord(0, 0, 100).transform(trans0)
-    ]);
-    var p4 = new Polygon([
-        new Coord(100, 0, 0).transform(trans0),
-        new Coord(100, 100, 0).transform(trans0),
-        new Coord(100, 100, 100).transform(trans0),
-        new Coord(100, 0, 100).transform(trans0)
-    ]);
-    var p5 = new Polygon([
-        new Coord(0, 100, 0).transform(trans0),
-        new Coord(0, 100, 100).transform(trans0),
-        new Coord(100, 100, 100).transform(trans0),
-        new Coord(100, 100, 0).transform(trans0)
-    ]);
-    var p6 = new Polygon([
-        new Coord(0, 0, 100).transform(trans0),
-        new Coord(100, 0, 100).transform(trans0),
-        new Coord(100, 100, 100).transform(trans0),
-        new Coord(0, 100, 100).transform(trans0)
-    ]);
+    var systemsGo = function () {
+        if (!window.Galaxy.pause) {
+            Az.each(window.Galaxy, function (star) {
+                Az.each(window.Galaxy, function (other) {
+                    if (star != other) {
+                        var dis = Coord.getVector(star.coord, other.coord).norm();
+                    }
+                });
+            });
+        }
 
-    window.World = [p1, p2, p3, p4, p5, p6];
-    //window.World = [p1, p2];
+        drawWorld(false);
+    }
 
-    Az.each(World, function (polygon) {
-        polygon.visible(new Coord(0, 0, ViewDistance)) && polygon.draw();
-    });
+    var s1 = new Star(100, 100, 100, 30, 1000); window.Galaxy.add(s1);
+    var s2 = new Star(50, -200, -100, 45, 100); window.Galaxy.add(s2);
+
+    setInterval(systemsGo, 100);
 })()

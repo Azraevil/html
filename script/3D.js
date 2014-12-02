@@ -8,6 +8,14 @@
             },
 
             Polygon: function (array) {
+                if (array) {
+                    for (var i = 0; i < array.length; i++) {
+                        this.push(array[i]);
+                    }
+                }
+            },
+
+            Model3d: function (array) {
                 this.length = 0;
                 if (array) {
                     for (var i = 0; i < array.length; i++) {
@@ -106,6 +114,13 @@
                     return radian >= 0 && radian < 1;
                 },
 
+                draw: function () {
+                    throw new Error('unimplemented exception');
+                }
+            });
+
+            Model3d.prototype = [];
+            Model3d.prototype.extend({
                 draw: function () {
                     throw new Error('unimplemented exception');
                 }

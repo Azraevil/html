@@ -8,6 +8,24 @@
         if (supplement && typeof supplement === 'function') {
             supplement.apply(this);
         }
+        return this;
+    };
+
+    Object.prototype.getType = function () {
+        return Object.prototype.toString.call(this).replace(/\[object|\s|\]/g, '').toLowerCase();
+    };
+
+    Object.prototype.clone = function () {
+        if (typeof this === 'function') throw new Error('nonsupport function');
+        if (typeof this.valueOf() !== 'object') return this.valueOf();
+        var origin = this;
+        var ectype = origin instanceof Array ? [] : {};
+        ectype.__proto__ = origin.__proto__;
+        for (var n in origin) {
+            if (origin.hasOwnProperty(n))
+                ectype[n] = origin[n].clone();
+        }
+        return ectype;
     };
 
     Az = function (selector, context) {
@@ -80,7 +98,7 @@
     Az.extend({
         each: function (obj, func) {
             if (obj == undefined) return;
-            if (obj.length && Az.isNumber(obj.length))
+            if (obj.length != undefined && Az.isNumber(obj.length))
                 for (var i = 0; i < obj.length; i++)
                     func(obj[i], i);
             else
@@ -88,9 +106,7 @@
         },
 
         type: function (obj) {
-            return obj == null ?
-                    String(obj) :
-                    Object.prototype.toString.call(obj).replace(/\[object|\]/g, '').toLowerCase();
+            return obj == null ? String(obj) : obj.getType();
         },
 
         isString: function (obj) {
@@ -98,7 +114,7 @@
         },
 
         isArray: function (obj) {
-            return obj instanceof Array;
+            return Az.type(obj) === 'array';
         },
 
         isNumber: function (obj) {
